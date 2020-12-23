@@ -1,3 +1,4 @@
+import dothat.touch as nav
 from .record import *
 from .menu import MainMenu
 from .track_alignment import *
