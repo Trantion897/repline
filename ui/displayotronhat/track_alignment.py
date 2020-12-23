@@ -1,4 +1,4 @@
-from dothat import lcd, backlight
+from dothat import lcd
 from audio_manipulation.audio_manipulation import *
 
 class TrackAlignment():
