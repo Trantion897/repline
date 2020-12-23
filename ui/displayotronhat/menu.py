@@ -1,3 +1,5 @@
+import dothat.touch as nav
+from dot3k.menu import Menu
 from .settings import *
 from .record import *
 

@@ -1,3 +1,5 @@
+from multiprocessing import Pool
+
 from pydub import AudioSegment
 from pydub.silence import *
 from math import floor

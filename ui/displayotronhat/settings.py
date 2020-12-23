@@ -1,4 +1,4 @@
-from dot3k.menu import Menu, MenuOption, MenuIcon
+from dot3k.menu import MenuOption, MenuIcon
 from encoding import encode
 
 # TODO: None of these are being saved?
