@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+    <title>Enter Metadata</title>
+    <script type="text/javascript" src="metadata.js"></script>
+    <link rel="stylesheet" href="metadata.css">
+</head>
+<body>
+    <form name="metadata" method="POST" accept-charset="UTF-8">
+        <header>
+            <h1>Enter album metadata</h1>
+            <h2>Album</h2>
+            <label>Album artist<input type="text" name="albumartist" value="$albumartist"></label>
+            <label>Album title<input type="text" name="albumtitle" value="$albumtitle"></label>
+            <label>Release year<input type="text" name="albumyear" value="$albumyear"></label>
+            <input type="button" name="metadata" value="Online lookup" id="search-button">
+        </header>
+        <h2>Tracks</h2>
+        <input type="hidden" name="numberOfTracks" value="0" id="numberOfTracks">
+        <table id="track-listing-table">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Track artist</th>
+                    <th>Track title</th>
+                    <th>Length</th>
+                </tr>
+            </thead>
+            <tbody>$tablebody</tbody>
+        </table>
+        <input type="submit" name="save" value="Save">
+    </form>
+<script type="text/javascript">
+store_empty_row();
+bind_events(document.getElementById("track-listing-table"));
+</script>
+</body>
+</html>
