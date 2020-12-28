@@ -58,7 +58,7 @@ class recorder():
         self.dispatcher_status, dispatcher_end = multiprocessing.Pipe()
         self.dispatcher = AudioDispatcher(self, dispatcher_end)
         self.last_status = {}
-        self.temporary_file = os.path.dirname(os.path.realpath(__file__)) + self.temporary_file
+        self.temporary_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), self.temporary_file)
 
     def temporary_file_exists(self):
         return os.path.exists(self.temporary_file)
@@ -290,7 +290,7 @@ class AudioDispatcher(multiprocessing.Process):
         print("Maybe starting find silence; currently running %d/%d processes, %d queued" % (self.find_silence_process_count, self.max_processes, self.queued_processes.qsize()))
         while not self.queued_processes.empty() and self.find_silence_process_count < self.max_processes:
             file_number = self.queued_processes.get()
-            proc = FindSilences(file_number, self.find_silence_queue)
+            proc = FindSilences(file_number, self.recorder.temporary_file, self.find_silence_queue)
             self.find_silence_processes[file_number] = proc
             self.find_silence_process_count += 1
             self.find_silence_running_process_start_time[file_number] = monotonic()
@@ -402,9 +402,9 @@ class FindSilences(multiprocessing.Process):
     audio_segment = None
     queue = None
 
-    def __init__(self, index, queue):
+    def __init__(self, index, temporary_file_path, queue):
         self.index = index
-        file = recorder.temporary_file % index
+        file = temporary_file_path % index
         print("Started new process looking for silences in %s" % file)
         self.audio_segment = AudioSegment.from_wav(file)
         self.queue = queue
