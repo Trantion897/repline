@@ -20,7 +20,7 @@ class recorder():
     recording_end_time = None
 
     temporary_file = "repline-input-%d.wav"
-    temporary_file_max_length = 15
+    temporary_file_max_length = 1
 
     dispatcher = None
     # A queue for the dispatcher to send its current status to. Each entry contains:
@@ -49,7 +49,7 @@ class recorder():
     # List of found silences
     silences = []
 
-    def __init__(self, repline):
+    def __init__(self):
         sd.default.samplerate = 44100
         sd.default.channels = 2
         self.q = Queue()
