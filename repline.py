@@ -84,7 +84,7 @@ class settings():
         }
     }
 
-    config_file = 'self.config_file'
+    config_file = 'repline.ini'
 
     def __init__(self):
         self.config_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), self.config_file)
