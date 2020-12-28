@@ -49,7 +49,7 @@ class recorder():
     # List of found silences
     silences = []
 
-    def __init__(self):
+    def __init__(self, repline):
         sd.default.samplerate = 44100
         sd.default.channels = 2
         self.q = Queue()
@@ -58,6 +58,7 @@ class recorder():
         self.dispatcher_status, dispatcher_end = multiprocessing.Pipe()
         self.dispatcher = AudioDispatcher(self, dispatcher_end)
         self.last_status = {}
+        self.temporary_file = os.path.dirname(os.path.realpath(__file__)) + self.temporary_file
 
     def temporary_file_exists(self):
         return os.path.exists(self.temporary_file)
@@ -335,6 +336,7 @@ class AudioDispatcher(multiprocessing.Process):
 
             # Now terminate the process we just read data from
             self.find_silence_processes[index].join()
+            del self.find_silence_processes[index]
             self.find_silence_process_count -= 1
 
         except Empty:
