@@ -49,7 +49,7 @@ class recorder():
     # List of found silences
     silences = []
 
-    def __init__(self):
+    def __init__(self, repline):
         sd.default.samplerate = 44100
         sd.default.channels = 2
         self.q = Queue()
@@ -59,6 +59,7 @@ class recorder():
         self.dispatcher = AudioDispatcher(self, dispatcher_end)
         self.last_status = {}
         self.temporary_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), self.temporary_file)
+        self.repline = repline
 
     def temporary_file_exists(self):
         return os.path.exists(self.temporary_file)

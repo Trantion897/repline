@@ -6,7 +6,7 @@ import os
 
 class repline():
     def __init__(self):
-        self.recorder = recorder.recorder()
+        self.recorder = recorder.recorder(self)
         self.config = settings()
 
     def open_ui(self):
