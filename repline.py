@@ -119,13 +119,13 @@ class settings():
         self.config.set(group, setting, str(value))
 
     def save(self):
-        with open('self.config_file', 'w') as configfile:
+        with open(self.config_file, 'w') as configfile:
             self.config.write(configfile)
 
     def read(self):
-        if (os.path.isfile('self.config_file')):
+        if (os.path.isfile(self.config_file)):
             print("Reading config file %s" % self.config_file)
-            with open('self.config_file', 'r') as configfile:
+            with open(self.config_file, 'r') as configfile:
                 self.config.read(configfile)
             print (self.config)
         else:
