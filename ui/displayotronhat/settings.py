@@ -146,8 +146,8 @@ class SilenceThreshold(NumericSetting):
     default = -16
     max = 0
     suffix = "dB"
-    config_group = "trackDetection"
-    config_item = "silenceThreshold"
+    config_group = "track_detection"
+    config_item = "silence_threshold"
 
 class MinSilenceLength(NumericSetting):
     title = "Minimum silence"
@@ -156,8 +156,8 @@ class MinSilenceLength(NumericSetting):
     default = 1000
     step = 100
     suffix = "ms"
-    config_group = "trackDetection"
-    config_item = "minSilenceLength"
+    config_group = "track_detection"
+    config_item = "min_silence_length"
 
 class OutputFormat(SelectSetting):
     title = "Output format"
@@ -183,7 +183,7 @@ class OutputFormat(SelectSetting):
         encode.format_AAC: "Lossy, modern"
     }
     config_group = "encoding"
-    config_item = "outputFormat"
+    config_item = "output_format"
     loop = True
 
     def redraw(self, menu):
@@ -192,7 +192,7 @@ class OutputFormat(SelectSetting):
 
 def get_quality_setting(repline):
     """Get the correct quality setting class for the current format"""
-    format = repline.config.get("encoding", "outputFormat")
+    format = repline.config.get("encoding", "output_format")
     if format == encode.format_MP3:
         return Mp3QualitySetting
     elif format == encode.format_FLAC:
@@ -286,7 +286,7 @@ class FlacQualitySetting(DummySetting):
 class SetInputDevice(LabelledNumericSetting):
     title = "Input device"
     config_group = "hardware"
-    config_item = "inputDevice"
+    config_item = "input_device"
 
     def __init__(self, repline):
         devices = repline.recorder.get_audio_devices()
@@ -316,7 +316,7 @@ class SetInputDevice(LabelledNumericSetting):
 class SetOutputDevice(LabelledNumericSetting):
     title = "Output device"
     config_group = "hardware"
-    config_item = "outputDevice"
+    config_item = "output_device"
 
     def __init__(self, repline):
         devices = repline.recorder.get_audio_devices()

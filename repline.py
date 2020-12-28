@@ -43,13 +43,13 @@ class settings():
                 "max": 2,
             },
         },
-        "trackDetection": {
-            "silenceThreshold": {
+        "track_detection": {
+            "silence_threshold": {
                 "min": -100,
                 "max": 0,
                 "default": -16
             },
-            "minSilenceLength": {
+            "min_silence_length": {
                 "min": 100,
                 "max": 10000,
                 "step": 100,
@@ -57,7 +57,7 @@ class settings():
             }
         },
         "encoding": {
-            "outputFormat": {
+            "output_format": {
                 "default": encode.format_WAV
             }
         },
@@ -75,10 +75,10 @@ class settings():
             "quality": "3"
         },
         "hardware": {
-            "inputDevice": {
+            "input_device": {
                 "default": None
             },
-            "outputDevice": {
+            "output_device": {
                 "default": None
             }
         }

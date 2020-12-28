@@ -208,7 +208,7 @@ class AudioDispatcher(multiprocessing.Process):
             recorder.dispatcher_response_time_remaining: None
         })
 
-        with sd.InputStream(samplerate=44100, device=self.recorder.repline.config.get("hardware", "inputDevice"), channels=2, callback=self.callback):
+        with sd.InputStream(samplerate=44100, device=self.recorder.repline.config.get("hardware", "input_device"), channels=2, callback=self.callback):
             while self.is_recording:
                 current_file = self.recorder.temporary_file % file_number
                 current_file_start_time = monotonic()
