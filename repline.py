@@ -84,7 +84,10 @@ class settings():
         }
     }
 
+    config_file = 'self.config_file'
+
     def __init__(self):
+        self.config_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), self.config_file)
         self.read()
 
     def get(self, group, setting):
@@ -116,13 +119,17 @@ class settings():
         self.config.set(group, setting, str(value))
 
     def save(self):
-        with open('repline.ini', 'w') as configfile:
+        with open('self.config_file', 'w') as configfile:
             self.config.write(configfile)
 
     def read(self):
-        if (os.path.isfile('repline.ini')):
-            with open('repline.ini', 'r') as configfile:
+        if (os.path.isfile('self.config_file')):
+            print("Reading config file %s" % self.config_file)
+            with open('self.config_file', 'r') as configfile:
                 self.config.read(configfile)
+            print (self.config)
+        else:
+            print("Config file %s does not exist" % self.config_file)
 
 repline = repline()
 repline.open_ui()
