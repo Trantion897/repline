@@ -99,7 +99,7 @@ class settings():
             for option in self.options[group].keys():
                 print ("Getting default value of %s.%s" % (group, option))
                 self.set_default(group, option)
-        elif (self.config.has_option(group, setting)):
+        elif (not self.config.has_option(group, setting)):
             self.set_default(group, setting)
 
         if self.config.has_option(group, setting):

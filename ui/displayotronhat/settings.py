@@ -20,6 +20,11 @@ class NumericSetting(MenuOption):
         self._icons_setup = False
         MenuOption.__init__(self)
 
+    def begin(self):
+        # Load current value
+        self.reset()
+        super().begin()
+
     def right(self):
         self.value += self.step
         if self.value > self.max:
@@ -27,7 +32,6 @@ class NumericSetting(MenuOption):
                 self.value = self.min
             else:
                 self.value = self.max
-        self.save()
         return True
 
     def left(self):
@@ -37,17 +41,28 @@ class NumericSetting(MenuOption):
                 self.value = self.max
             else:
                 self.value = self.min
-        self.save()
         return True
 
+    def up(self):
+        self.reset_to_default()
+
+    def down(self):
+        self.reset_to_default()
+
     def select(self):
-        self.reset()
-        return False
+        self.save()
+        return True # Must return true to go back to previous menu
 
     def reset(self):
+        # Load current value from config
         print ("Resetting %s" % self.__class__)
-        self.repline.config.set_default(self.config_group, self.config_item)
         self.value = int(self.repline.config.get(self.config_group, self.config_item))
+
+    def reset_to_default(self):
+        # Restore to default value and save to config
+        print ("Restoring default for %s" % self.__class__)
+        self.repline.config.set_default(self.config_group, self.config_item)
+        self.reset()
 
     def setup_icons(self, menu):
         menu.lcd.create_char(0, MenuIcon.arrow_left_right)
@@ -63,8 +78,10 @@ class NumericSetting(MenuOption):
         self.reset()
 
     def save(self):
+        print("Setting %s.%s to %s" % (self.config_group, self.config_item, self.value))
         self.repline.config.set(self.config_group, self.config_item, self.value)
         self.repline.config.save()
+        print("Value saved as %s" % self.repline.config.get(self.config_group, self.config_item))
 
     def redraw(self, menu):
         if not self._icons_setup:
@@ -72,7 +89,7 @@ class NumericSetting(MenuOption):
 
         menu.write_row(0, self.title)
         menu.write_row(1, "%s%s%s%s" % (chr(0), self.prefix, self.value, self.suffix))
-        menu.clear_row(2)
+        menu.write_row(2, "%sReset %sOK %sBack" % (chr(1), "+", chr(251)))
 
 class LabelledNumericSetting(NumericSetting):
     options = []
@@ -88,7 +105,7 @@ class LabelledNumericSetting(NumericSetting):
 
         menu.write_row(0, self.title)
         menu.write_row(1, "%s%s%s%s" % (chr(0), self.prefix, self.options[self.value], self.suffix))
-        menu.clear_row(2)
+        menu.write_row(2, "%sReset %sOK %sBack" % (chr(1), "+", chr(251)))
 
 class SelectSetting(LabelledNumericSetting):
     title = "Select setting"
@@ -110,8 +127,7 @@ class SelectSetting(LabelledNumericSetting):
 
     def select(self):
         self.repline.config.set_default(self.config_group, self.config_item)
-        self.reset()
-        return False
+        return True
 
     def reset(self):
         self.value = self.options.index(self.repline.config.get(self.config_group, self.config_item))
@@ -122,7 +138,7 @@ class SelectSetting(LabelledNumericSetting):
 
         menu.write_row(0, self.title)
         menu.write_row(1, "%s%s%s%s" % (chr(0), self.prefix, self.labels[self.options[self.value]], self.suffix))
-        menu.clear_row(2)
+        menu.write_row(2, "%sReset %sOK %sBack" % (chr(1), "+", chr(251)))
 
 class DummySetting(MenuOption):
     title = "Dummy setting"
