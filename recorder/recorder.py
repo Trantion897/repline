@@ -49,9 +49,11 @@ class recorder():
     # List of found silences
     silences = []
 
+    channels = 2
+
     def __init__(self, repline):
         sd.default.samplerate = 44100
-        sd.default.channels = 2
+        sd.default.channels = self.channels
         self.q = Queue()
         self.queues = []
         self.is_recording = False
@@ -208,11 +210,11 @@ class AudioDispatcher(multiprocessing.Process):
             recorder.dispatcher_response_time_remaining: None
         })
 
-        with sd.InputStream(samplerate=44100, device=self.recorder.repline.config.get("hardware", "input_device"), channels=2, callback=self.callback):
+        with sd.InputStream(samplerate=44100, device=self.recorder.repline.config.get("hardware", "input_device"), channels=self.recorder.channels, callback=self.callback):
             while self.is_recording:
                 current_file = self.recorder.temporary_file % file_number
                 current_file_start_time = monotonic()
-                with sf.SoundFile(current_file, mode='w', samplerate=44100, channels=2, format='WAV') as tempFile:
+                with sf.SoundFile(current_file, mode='w', samplerate=44100, channels=self.recorder.channels, format='WAV') as tempFile:
                     print("Writing to temporary file: %s" % current_file)
                     while self.is_recording and monotonic() < current_file_start_time + (self.recorder.temporary_file_max_length * 60):
                         print('1', end='')
@@ -382,7 +384,7 @@ class AudioInputListener(multiprocessing.Process):
         super().__init__()
 
     def run(self):
-        with sd.InputStream(samplerate=44100, device=None, channels=2, callback=self.callback):
+        with sd.InputStream(samplerate=44100, device=None, channels=self.dispatcher.recorder.channels, callback=self.callback):
             while self.dispatcher.recorder.is_recording:
                 pass
 
@@ -407,7 +409,8 @@ class FindSilences(multiprocessing.Process):
         self.index = index
         file = temporary_file_path % index
         print("Started new process looking for silences in %s" % file)
-        self.audio_segment = AudioSegment.from_wav(file)
+        # Load this segment in mono to speed up silence detection
+        self.audio_segment = AudioSegment.from_wav(file).set_channels(1)
         self.queue = queue
         super().__init__()
 
