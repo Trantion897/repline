@@ -1,3 +1,8 @@
+# Repline temporary files
+recorder/repline-input-*.wav
+repline.ini
+dot3k.cfg
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -127,3 +132,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# IDE
+.idea/
