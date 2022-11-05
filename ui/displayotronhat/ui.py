@@ -58,7 +58,7 @@ class UI:
         self.alignment_ui.on_active()
 
     def redraw(self):
-        print("Redrawing UI from process %d" % os.getpid())
+        # print("Redrawing UI from process %d" % os.getpid())
         self.active_ui.redraw()
 
     def handle_up(self, ch, evt):

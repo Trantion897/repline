@@ -26,14 +26,14 @@ class repline():
         self.recorder.stop()
 
     def register_callback_queue(self, moduleName, queue: Queue):
-        print ("module in self: {}".format(hasattr(self, moduleName)))
+        print("module in self: {}".format(hasattr(self, moduleName)))
         if (hasattr(self, moduleName)):
             module = getattr(self, moduleName)
-            print ("register_callback: {}".format(hasattr(module, "register_callback")))
+            print("register_callback: {}".format(hasattr(module, "register_callback")))
             if (hasattr(module, "register_callback_queue")):
                 module.register_callback_queue(queue)
 
-class settings():
+class Settings():
     config = configparser.ConfigParser()
     options = {
         "recording": {
@@ -131,5 +131,6 @@ class settings():
         else:
             print("Config file %s does not exist" % self.config_file)
 
-repline = repline()
-repline.open_ui()
+if __name__ == "__main__":
+    repline = repline()
+    repline.open_ui()
