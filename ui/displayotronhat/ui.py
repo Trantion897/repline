@@ -1,3 +1,6 @@
+import sys
+import traceback
+
 import dothat.touch as nav
 from .record import *
 from .menu import MainMenu
@@ -25,6 +28,8 @@ class UI:
     ]
 
     def __init__(self, repline):
+        print(self.__class__.__name__+"__init__")
+        traceback.print_stack()
         self.menu = MainMenu(repline, self)
         self.record_ui = Record(repline, self)
         self.alignment_ui = TrackAlignment(repline, self)
@@ -80,6 +85,7 @@ class UI:
         self.redraw()
 
     def handle_select(self, ch, evt):
+        print("handle_select: active UI is {0}".format(self.active_ui.__class__))
         self.active_ui.handle_select(ch, evt)
         self.redraw()
 
@@ -108,31 +114,37 @@ class UI:
         AreYouSure(self, message, on_yes, on_no)
 
 def bind_buttons(ui):
-    print ("Binding buttons")
+    print("Binding buttons: ui.py")
+    traceback.print_stack()
 
     @nav.on(nav.UP)
     def handle_up(ch, evt):
+        print("UP: {0}".format(ui.__class__))
         ui.handle_up(ch, evt)
 
     @nav.on(nav.DOWN)
     def handle_down(ch, evt):
+        print("DOWN: {0}".format(ui.__class__))
         ui.handle_down(ch, evt)
 
     @nav.on(nav.LEFT)
     def handle_left(ch, evt):
-        print ("LEFT")
+        print("LEFT: {0}".format(ui.__class__))
         ui.handle_left(ch, evt)
 
     @nav.on(nav.RIGHT)
     def handle_right(ch, evt):
+        print("RIGHT: {0}".format(ui.__class__))
         ui.handle_right(ch, evt)
 
     @nav.on(nav.BUTTON)
     def handle_select(ch, evt):
+        print("SELECT: {0}".format(ui.__class__))
         ui.handle_select(ch, evt)
 
     @nav.on(nav.CANCEL)
     def handle_cancel(ch, evt):
+        print("CANCEL: {0}".format(ui.__class__))
         ui.handle_cancel(ch, evt)
         return True
 

@@ -1,67 +1,50 @@
+import sys
+import traceback
+
 from dot3k.menu import MenuOption, MenuIcon
+import dothat.touch as nav
 from encoding import encode
 
 # TODO: None of these are being saved?
 
-class NumericSetting(MenuOption):
-    title = "Numeric setting"
-    prefix = ""
-    suffix = ""
-    max = 0
-    min = 0
-    default = 0
-    step = 1
-    config_group = ""
-    config_item = ""
-    loop = False
+def bind_buttons():
+    print ("Binding buttons: settings.py")
 
-    def __init__(self, repline):
+
+
+class ReplineMenuOption(MenuOption):
+    repline = None
+    _icons_setup = False
+    text_entry = False
+    config_location = []
+
+    def __init__(self, repline, config_location=[], **kwargs):
+        print ("Init ReplineMenuOption")
+        print(config_location)
         self.repline = repline
-        self._icons_setup = False
-        MenuOption.__init__(self)
+        self.config_location = config_location
+        self.definition = kwargs
+        # self.bind_buttons()
 
-    def begin(self):
-        # Load current value
-        self.reset()
-        super().begin()
-
-    def right(self):
-        self.value += self.step
-        if self.value > self.max:
-            if self.loop:
-                self.value = self.min
-            else:
-                self.value = self.max
-        return True
-
-    def left(self):
-        self.value -= self.step
-        if self.value < self.min:
-            if self.loop:
-                self.value = self.max
-            else:
-                self.value = self.min
-        return True
+        super().__init__()
 
     def up(self):
+        print("ReplineMenuOption.up")
         self.reset_to_default()
 
     def down(self):
+        print("ReplineMenuOption.down")
         self.reset_to_default()
 
     def select(self):
+        print("ReplineMenuOption.select")
         self.save()
         return True # Must return true to go back to previous menu
 
-    def reset(self):
-        # Load current value from config
-        print ("Resetting %s" % self.__class__)
-        self.value = int(self.repline.config.get(self.config_group, self.config_item))
-
     def reset_to_default(self):
         # Restore to default value and save to config
-        print ("Restoring default for %s" % self.__class__)
-        self.repline.config.set_default(self.config_group, self.config_item)
+        print("Restoring default for %s" % self.__class__)
+        self.repline.config.set_default(self.config_location)
         self.reset()
 
     def setup_icons(self, menu):
@@ -70,277 +53,228 @@ class NumericSetting(MenuOption):
         menu.lcd.create_char(2, MenuIcon.arrow_left)
         self._icons_setup = True
 
-    def cleanup(self):
-        self._icons_setup = False
-
-    def setup(self, config):
-        self.config = config
+    def begin(self):
+        print("Begin!")
         self.reset()
+        super().begin()
 
-    def save(self):
-        print("Setting %s.%s to %s" % (self.config_group, self.config_item, self.value))
-        self.repline.config.set(self.config_group, self.config_item, self.value)
-        self.repline.config.save()
-        print("Value saved as %s" % self.repline.config.get(self.config_group, self.config_item))
 
-    def redraw(self, menu):
-        if not self._icons_setup:
-            self.setup_icons(menu)
+class DictionarySetting(ReplineMenuOption):
+    pointer = 0
 
-        menu.write_row(0, self.title)
-        menu.write_row(1, "%s%s%s%s" % (chr(0), self.prefix, self.value, self.suffix))
-        menu.write_row(2, "%sReset %sOK %sBack" % (chr(1), "+", chr(251)))
+    @nav.on(nav.RIGHT)
+    def right(self):
+        print("DictionarySetting.right")
+        if self.pointer < len(self.options) - 1:
+            self.pointer += 1
+        elif self.loop:
+            self.pointer = 0
+        return True
 
-class LabelledNumericSetting(NumericSetting):
-    options = []
-    def __init__(self, repline):
-        NumericSetting.__init__(self, repline)
-        self.min = 0
-        self.max = len(self.options)-1
-        self.reset()
-
-    def redraw(self, menu):
-        if not self._icons_setup:
-            self.setup_icons(menu)
-
-        menu.write_row(0, self.title)
-        menu.write_row(1, "%s%s%s%s" % (chr(0), self.prefix, self.options[self.value], self.suffix))
-        menu.write_row(2, "%sReset %sOK %sBack" % (chr(1), "+", chr(251)))
-
-class SelectSetting(LabelledNumericSetting):
-    title = "Select setting"
-    prefix = ""
-    suffix = ""
-    options = []
-    labels = {}
-    config_group = ""
-    config_item = ""
-
-    def __init__(self, repline):
-        NumericSetting.__init__(self, repline)
-        self.min = 0
-        self.max = len(self.options)-1
-
-    def setup(self, config):
-        self.config = config
-        self.reset()
-
-    def select(self):
-        self.repline.config.set_default(self.config_group, self.config_item)
+    @nav.on(nav.LEFT)
+    def left(self):
+        print("DictionarySetting.left")
+        if self.pointer > 0:
+            self.pointer -= 1
+        elif self.loop:
+            self.pointer = len(self.options) - 1
         return True
 
     def reset(self):
-        self.value = self.options.index(self.repline.config.get(self.config_group, self.config_item))
+        # Load current value from config
+        print("Resetting %s" % self.__class__)
+        # value = self.repline.config.get(self.config_location)
+        # print(value)
+        print(self.definition['options'])
+        sys.exit()
+        if value is not None and value in self.definition['options']:
+            self.pointer = list(self.definition['options']).index(value)
+        else:
+            self.reset_to_default()
+
+    def save(self):
+        value = self.get_value()
+        self.repline.config.set(self.config_location, value)
+        self.repline.config.save()
+        print("Value saved as {0}".format(self.repline.config.get(self.config_location)))
+
+    def redraw(self, menu):
+        print("Redraw...")
+        traceback.print_stack()
+        if not self._icons_setup:
+            self.setup_icons(menu)
+
+        value = self.get_value()
+        display_value = self.get_display_value(value)
+        help_text = self.get_help(value)
+        if 'title' in self.definition:
+            menu.write_row(0, self.definition['title'])
+        else:
+            menu.write_row(0, self.config_location[1].capitalize().replace("_", " "))
+        menu.write_row(1, "{0}{1}{2}{3}".format(
+            chr(0),
+            self.definition['prefix'] if 'prefix' in self.definition else '',
+            display_value,
+            self.definition['suffix'] if 'suffix' in self.definition else '',
+        ))
+        if help_text is None:
+            menu.write_row(2, "{0}Reset {1}OK {2}Back".format(chr(1), "+", chr(251)))
+        else:
+            menu.write_row(2, help_text)
+        print("Redraw complete")
+
+    def get_value(self, pointer=None):
+        if pointer is None:
+            pointer = self.pointer
+        return list(self.definition['options'])[pointer]
+
+    def get_display_value(self, value=None, pointer=None):
+        if value is None:
+            value = self.get_value(pointer)
+        return self.definition['options'][value]
+
+    def get_help(self, value=None, pointer=None):
+        if value is None:
+            value = self.get_value(pointer)
+        if 'help' in self.definition and value in self.definition['help']:
+            return self.definition['help'][value]
+        else:
+            return None
+
+
+class NumericSetting(ReplineMenuOption):
+    max = 0
+    min = 0
+    default = 0
+    step = 1
+    loop = False
+    value = 0
+
+    def __init__(self, repline, **kwargs):
+        self._icons_setup = False
+        super().__init__(repline, **kwargs)
+
+    def right(self):
+        print("DictionarySetting.right")
+        self.value += self.definition['step']
+        if self.value > self.definition['max']:
+            if self.definition['loop']:
+                self.value = self.definition['min']
+            else:
+                self.value = self.definition['max']
+        return True
+
+    def left(self):
+        print("DictionarySetting.left")
+        self.value -= self.definition['step']
+        if self.value < self.definition['min']:
+            if self.definition['loop']:
+                self.value = self.definition['max']
+            else:
+                self.value = self.definition['min']
+        return True
+
+    def reset(self):
+        # Load current value from config
+        print ("Resetting %s" % self.__class__)
+        value = self.repline.config.get(self.config_location)
+        if value is None:
+            print("No value for {0} in config".format(self.config_location))
+        elif value.isdigit():
+            self.value = int()
+        else:
+            print("Invalid value for {0} in config".format(self.config_location))
+
+    def cleanup(self):
+        self._icons_setup = False
+
+    def save(self):
+        self.repline.config.set(self.config_location, self.value)
+        self.repline.config.save()
+        print("Value saved as %s" % self.repline.config.get(self.config_location))
 
     def redraw(self, menu):
         if not self._icons_setup:
             self.setup_icons(menu)
 
-        menu.write_row(0, self.title)
-        menu.write_row(1, "%s%s%s%s" % (chr(0), self.prefix, self.labels[self.options[self.value]], self.suffix))
+        if 'title' in self.definition:
+            menu.write_row(0, self.definition['title'])
+        else:
+            menu.write_row(0, self.config_location[1].capitalize().replace("_", " "))
+        menu.write_row(1, "{0}{1}{2}{3}".format(
+            chr(0),
+            self.definition['prefix'] if 'prefix' in self.definition else '',
+            self.value,
+            self.definition['suffix'] if 'suffix' in self.definition else ''
+        ))
+        menu.write_row(2, "%sReset %sOK %sBack" % (chr(1), "+", chr(251)))
+
+
+class LabelledNumericSetting(NumericSetting):
+    options = []
+    def __init__(self, repline, **kwargs):
+        super().__init__(self, repline, **kwargs)
+        self.min = 0
+        self.max = len(self.options)-1
+        self.reset()
+
+    def redraw(self, menu):
+        if not self._icons_setup:
+            self.setup_icons(menu)
+
+        if 'title' in self.definition:
+            menu.write_row(0, self.definition['title'])
+        else:
+            menu.write_row(0, self.config_location[1].capitalize().replace("_", " "))
+        menu.write_row(1, "{0}{1}{2}{3}".format(
+            chr(0),
+            self.definition['prefix'] if 'prefix' in self.definition else '',
+            self.definition['options'][self.value],
+            self.definition['suffix'] if 'suffix' in self.definition else ''
+        ))
         menu.write_row(2, "%sReset %sOK %sBack" % (chr(1), "+", chr(251)))
 
 class DummySetting(MenuOption):
-    title = "Dummy setting"
     value = ""
 
     def redraw(self, menu):
-        menu.write_row(0, self.title)
+        if 'title' in self.definition:
+            menu.write_row(0, self.definition['title'])
+        else:
+            menu.write_row(0, self.config_location[1].capitalize().replace("_", " "))
         menu.write_row(1, "%s" % (self.value))
         menu.clear_row(2)
 
-class Normalisation(LabelledNumericSetting):
-    options = ["None", "Per album", "Per track"]
-    title = 'Normalisation'
-    config_group = "recording"
-    config_item = "normalisation"
-    loop = True
-
-class SilenceThreshold(NumericSetting):
-    title = "Silence level"
-    min = -100
-    default = -16
-    max = 0
-    suffix = "dB"
-    config_group = "track_detection"
-    config_item = "silence_threshold"
-
-class MinSilenceLength(NumericSetting):
-    title = "Minimum silence"
-    min = 100
-    max = 10000
-    default = 1000
-    step = 100
-    suffix = "ms"
-    config_group = "track_detection"
-    config_item = "min_silence_length"
-
-class OutputFormat(SelectSetting):
-    title = "Output format"
-    options = [
-        encode.format_WAV,
-        encode.format_FLAC,
-        encode.format_MP3,
-        encode.format_VORBIS,
-        encode.format_AAC
-    ]
-    labels = {
-        encode.format_WAV: "WAV",
-        encode.format_FLAC: "FLAC",
-        encode.format_MP3: "MP3",
-        encode.format_VORBIS: "Ogg Vorbis",
-        encode.format_AAC: "AAC"
-    }
-    helpText = {
-        encode.format_WAV: "Uncompressed",
-        encode.format_FLAC: "Lossless",
-        encode.format_MP3: "Lossy, v. common",
-        encode.format_VORBIS: "Lossy, free",
-        encode.format_AAC: "Lossy, modern"
-    }
-    config_group = "encoding"
-    config_item = "output_format"
-    loop = True
-
-    def redraw(self, menu):
-        super().redraw(menu)
-        menu.write_row(2, self.helpText[self.options[self.value]])
-
-def get_quality_setting(repline):
-    """Get the correct quality setting class for the current format"""
-    format = repline.config.get("encoding", "output_format")
-    if format == encode.format_MP3:
-        return Mp3QualitySetting
-    elif format == encode.format_FLAC:
-        return FlacQualitySetting
-    elif format == encode.format_WAV:
-        return WavQualitySetting
-    elif format == encode.format_AAC:
-        return AacQualitySetting
-    elif format == encode.format_VORBIS:
-        return VorbisQualitySetting
-
-class Mp3QualitySetting(SelectSetting):
-    title = "MP3 Quality"
-    options = [
-        "q:a 9",
-        "q:a 8",
-        "q:a 7",
-        "q:a 6",
-        "q:a 5",
-        "q:a 4",
-        "q:a 3",
-        "q:a 2",
-        "q:a 1",
-        "q:a 0",
-        "b:a 320k",
-    ],
-    labels = {
-        "q:a 9": "Worst",
-        "q:a 8": "-4",
-        "q:a 7": "-3",
-        "q:a 6": "-2",
-        "q:a 2": "+2",
-        "q:a 5": "-1",
-        "q:a 4": "Medium",
-        "q:a 3": "+1",
-        "q:a 1": "+3",
-        "q:a 0": "+4",
-        "b:a 320k": "Best",
-    }
-    config_group = "encoding_mp3"
-    config_item = "bitrate"
-
-class AacQualitySetting(SelectSetting):
-    title = "AAC Quality"
-    # TODO: Fix bitrates
-    options = [
-        "b:a 320k",
-        "b:a 0",
-        "b:a 1",
-        "b:a 2",
-        "b:a 3",
-        "b:a 4",
-        "b:a 5",
-        "b:a 6",
-        "b:a 7",
-        "b:a 8",
-        "b:a 9",
-              ],
-    labels = {
-        "b:a 320k": "Best",
-        "b:a 0": "+4",
-        "b:a 1": "+3",
-        "b:a 2": "+2",
-        "b:a 3": "+1",
-        "b:a 4": "Medium",
-        "b:a 5": "-1",
-        "b:a 6": "-2",
-        "b:a 7": "-3",
-        "b:a 8": "-4",
-        "b:a 9": "Worst",
-    }
-    config_group = "encoding_aac"
-    config_item = "bitrate"
-
-class VorbisQualitySetting(Mp3QualitySetting):
-    title = "Vorbis Quality"
-    config_group = "encoding_oggvorbis"
-    config_item = "bitrate"
-
-class WavQualitySetting(DummySetting):
-    title = "WAV Quality"
-    value = "Perfect"
-
-class FlacQualitySetting(DummySetting):
-    title = "FLAC Quality"
-    value = "Perfect"
+# TODO: Reimplement this with the new system so you only get to set quality for the format you're currently using
+# def get_quality_setting(repline):
+#     """Get the correct quality setting class for the current format"""
+#     format = repline.config.get("encoding", "output_format")
+#     if format == encode.format_MP3:
+#         return Mp3QualitySetting
+#     elif format == encode.format_FLAC:
+#         return FlacQualitySetting
+#     elif format == encode.format_WAV:
+#         return WavQualitySetting
+#     elif format == encode.format_AAC:
+#         return AacQualitySetting
+#     elif format == encode.format_VORBIS:
+#         return VorbisQualitySetting
 
 # class SaveLocation()
 
+class SetInputDevice(DictionarySetting):
+    value = None
 
-class SetInputDevice(LabelledNumericSetting):
-    title = "Input device"
-    config_group = "hardware"
-    config_item = "input_device"
-
-    def __init__(self, repline):
+    def __init__(self, repline, **kwargs):
         devices = repline.recorder.get_audio_devices()
-        for elem in devices:
-            print (elem)
-        self.options = [elem['name'] for elem in devices]
+        self.definition = kwargs
+        self.definition['options'] = {d['name']: d['name'] for d in devices if d['max_input_channels'] > 0}
         super().__init__(repline)
 
-    def reset(self):
-        self.value = self.repline.recorder.get_default_input_device()
+class SetOutputDevice(DictionarySetting):
 
-    def left(self):
-        print ("Moving left from %s (min: %s, max: %s)" % (self.value, self.min, self.max))
-        r = super().left()
-        print("New value is %s" % self.value)
-        return r
-
-    def right(self):
-        print ("Moving right from %s (min: %s, max: %s)" % (self.value, self.min, self.max))
-        r = super().right()
-        print("New value is %s" % self.value)
-        return r
-
-    def cancel(self):
-        print("CANCEL")
-
-class SetOutputDevice(LabelledNumericSetting):
-    title = "Output device"
-    config_group = "hardware"
-    config_item = "output_device"
-
-    def __init__(self, repline):
+    def __init__(self, repline, **kwargs):
         devices = repline.recorder.get_audio_devices()
-        self.options = [elem['name'] for elem in devices]
+        self.definition = kwargs
+        self.definition['options'] = {d['name']: d['name'] for d in devices if d['max_output_channels'] > 0}
         super().__init__(repline)
-
-    def reset(self):
-        self.value = self.repline.recorder.get_default_input_device()
-
-    def cancel(self):
-        print("CANCEL")

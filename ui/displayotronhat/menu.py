@@ -1,5 +1,7 @@
 import dothat.touch as nav
 from dot3k.menu import Menu
+
+from repline import Settings
 from .settings import *
 from .record import *
 
@@ -11,30 +13,20 @@ class MainMenu():
         self.controller = controller
 
         self.menu = Menu(
-            structure={
+            structure= {
                 'Record': self.record,
-                'Settings': {
-                    'Recording': {
-                        'Normalisation': Normalisation(repline)
-                    },
-                    'Track detection': {
-                        SilenceThreshold.title: SilenceThreshold(repline),
-                        MinSilenceLength.title: MinSilenceLength(repline)
-                    },
-                    'Encoding': {
-                        OutputFormat.title: OutputFormat(repline),
-                        get_quality_setting(repline).title: get_quality_setting(repline)
-                    },
-                    # 'Saving': {
-                    # },
-                    'Hardware': {
-                        SetInputDevice.title: SetInputDevice(repline),
-                        SetOutputDevice.title: SetOutputDevice(repline),
-                    }
-                }
+                'Settings': self.generate_menu_structure(repline, Settings.options),
+                'Test': DictionarySetting(repline, options={'one':'one', 'two':'two', 'three':'three'}, default='one', title='TEST')
             },
             lcd=lcd)
         nav.bind_defaults(self.menu)
+
+    def generate_menu_structure(self, repline, menu_definition, parents=[]):
+        if "class" in menu_definition:
+            # This defines a single menu item
+            return menu_definition['class'](repline, config_location=parents, **menu_definition)
+        else:
+            return {name.capitalize().replace('_', ' '): self.generate_menu_structure(repline, definition, parents=parents+[name]) for (name, definition) in menu_definition.items()}
 
     def on_active(self):
         pass
@@ -46,21 +38,27 @@ class MainMenu():
         self.controller.open_record_ui()
 
     def handle_up(self, ch, evt):
+        print("handle_up, menu: {0}".format(self.menu.__class__))
         self.menu.up()
 
     def handle_down(self, ch, evt):
+        print("handle_down, menu: {0}".format(self.menu.__class__))
         self.menu.down()
 
     def handle_left(self, ch, evt):
+        print("handle_left, menu: {0}".format(self.menu.__class__))
         self.menu.left()
 
     def handle_right(self, ch, evt):
+        print("handle_right, menu: {0}".format(self.menu.__class__))
         self.menu.right()
 
     def handle_select(self, ch, evt):
+        print("handle_select, menu: {0}".format(self.menu.__class__))
         self.menu.select()
 
     def handle_cancel(self, ch, evt):
+        print("handle_cancel, menu: {0}".format(self.menu.__class__))
         self.menu.cancel()
 
 class Contrast(MenuOption):
