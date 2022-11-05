@@ -1,3 +1,4 @@
+import audioop
 import queue
 from pickle import UnpicklingError
 
@@ -11,6 +12,8 @@ from time import monotonic, sleep
 from pydub import AudioSegment
 from pydub.silence import *
 from math import ceil
+
+import numpy
 
 import sys
 import multiprocessing
@@ -151,6 +154,10 @@ class AudioDispatcher(multiprocessing.Process):
     listener = None
     # Queue from AudioInputListener -> AudioDispatcher (receives incoming audio)
     inputQueue = None
+    # FindSilences
+    silenceProcessor = None
+    # Queue from AudioDispatcher -> FindSilences (send audio for scanning)
+    processingQueue = None
     # List of queues to copy incoming audio to
     callbackQueues = []
 
@@ -176,10 +183,9 @@ class AudioDispatcher(multiprocessing.Process):
         self.recorder = recorder
         self.recorder_status = recorder_status
         self.inputQueue = Queue()
+        self.processingQueue = Queue()
         self.callbackQueues = []
 
-        self.find_silence_processes = {}
-        self.find_silence_queue = multiprocessing.Queue()
         self.silences = []
         self.find_silence_process_complete_time = []
         self.find_silence_running_process_start_time = {}
@@ -199,8 +205,8 @@ class AudioDispatcher(multiprocessing.Process):
         self.inputQueue.put_nowait((indata.copy(), status))
 
     def run(self):
-        # self.listener = AudioInputListener(self, self.inputQueue)
-        # self.listener.start()
+        self.listener = AudioInputListener(self, self.inputQueue)
+        self.listener.start()
         file_number = 0
         last_check = monotonic()
 
@@ -219,36 +225,33 @@ class AudioDispatcher(multiprocessing.Process):
                     while self.is_recording and monotonic() < current_file_start_time + (self.recorder.temporary_file_max_length * 60):
                         print('1', end='')
                         (indata, status) = self.inputQueue.get()
-                        print('2', end='')
+
                         tempFile.write(indata)
-                        print('3', end='')
+                        self.processingQueue.put(audioop.tomono(indata))
                         for queue in self.callbackQueues:
-                            print('4', end='')
                             queue.put((indata, status))
-                            print('5', end='')
                         self.receive_messages()
-                        print('6', end='')
 
                         # Once a second, check if any FindSilences jobs have finished and update the status for the recorder
-                        if last_check + 1 < monotonic():
-                            last_check = monotonic()
-                            self.read_from_find_silence_queue()
-                            self.start_find_silence_process()
-                            print("There are %d running FindSilence processes, %d silences found by completed processes." % (self.find_silence_process_count, len(self.silences)))
-                            print("Sending status: index: %s (%s), processes: %s (%s), time remaining: %s (%s)" % (
-                                file_number,
-                                type(file_number),
-                                self.find_silence_process_count,
-                                type(self.find_silence_process_count),
-                                self.get_estimated_finish_time(),
-                                type(self.get_estimated_finish_time())
-                            ))
-                            self.recorder_status.send({
-                                recorder.dispatcher_response_file_index: file_number,
-                                recorder.dispatcher_response_process_count: self.find_silence_process_count,
-                                recorder.dispatcher_response_time_remaining: self.get_estimated_finish_time()
-                            })
-                            print("Sent update to recorder")
+                        # if last_check + 1 < monotonic():
+                        #     last_check = monotonic()
+                        #     self.read_from_find_silence_queue()
+                        #     self.start_find_silence_process()
+                        #     print("There are %d running FindSilence processes, %d silences found by completed processes." % (self.find_silence_process_count, len(self.silences)))
+                        #     print("Sending status: index: %s (%s), processes: %s (%s), time remaining: %s (%s)" % (
+                        #         file_number,
+                        #         type(file_number),
+                        #         self.find_silence_process_count,
+                        #         type(self.find_silence_process_count),
+                        #         self.get_estimated_finish_time(),
+                        #         type(self.get_estimated_finish_time())
+                        #     ))
+                        #     self.recorder_status.send({
+                        #         recorder.dispatcher_response_file_index: file_number,
+                        #         recorder.dispatcher_response_process_count: self.find_silence_process_count,
+                        #         recorder.dispatcher_response_time_remaining: self.get_estimated_finish_time()
+                        #     })
+                        #     print("Sent update to recorder")
 
                 # Spawn a FindSilences process to handle this latest file
                 # TODO: Only allow cpu_count - 2 to run at once (min. 1)
@@ -375,6 +378,7 @@ class AudioDispatcher(multiprocessing.Process):
 class AudioInputListener(multiprocessing.Process):
     """A thread/process that constantly listens to incoming audio and passes anything it sees to a queue
     This is a small process to keep it as simple as possible because this is the critical point where we can't lose anything"""
+    # TODO: Can I get the RMS of each incoming sample? If so I could write an inline silence detection
     dispatcher = None
     queue = None
 
@@ -384,13 +388,16 @@ class AudioInputListener(multiprocessing.Process):
         super().__init__()
 
     def run(self):
-        with sd.InputStream(samplerate=44100, device=None, channels=self.dispatcher.recorder.channels, callback=self.callback):
+        print("AudioInputListener: Started recording")
+        with sd.InputStream(samplerate=44100, device=self.dispatcher.recorder.repline.config.get("hardware", "input_device"), channels=self.dispatcher.recorder.channels, callback=self.callback):
             while self.dispatcher.recorder.is_recording:
                 pass
 
         print("AudioInputListener: Stopped recording")
 
     def callback(self, indata, frames, time, status):
+        rms = numpy.sqrt(numpy.mean(numpy.square(indata)))
+        # print ("RMS: %d " % rms)
         self.queue.put_nowait((indata.copy(), status))
         # if status:
         #     print(status)
