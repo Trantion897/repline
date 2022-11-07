@@ -79,6 +79,14 @@ class recorder():
     def get_audio_devices(self):
         return sd.query_devices()
 
+    def get_input_devices(self):
+        devices = self.get_audio_devices()
+        return [d for d in devices if d['max_input_channels'] > 0]
+
+    def get_output_devices(self):
+        devices = self.get_audio_devices()
+        return [d for d in devices if d['max_output_channels'] > 0]
+
     def set_default_input_device(self, device):
         sd.default.device[0] = device
 

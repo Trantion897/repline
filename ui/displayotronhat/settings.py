@@ -2,7 +2,6 @@ import sys
 import traceback
 
 from dot3k.menu import MenuOption, MenuIcon
-import dothat.touch as nav
 from encoding import encode
 
 # TODO: None of these are being saved?
@@ -24,6 +23,8 @@ class ReplineMenuOption(MenuOption):
         self.repline = repline
         self.config_location = config_location
         self.definition = kwargs
+        if 'loop' not in self.definition:
+            self.definition['loop'] = False
         # self.bind_buttons()
 
         super().__init__()
@@ -62,31 +63,28 @@ class ReplineMenuOption(MenuOption):
 class DictionarySetting(ReplineMenuOption):
     pointer = 0
 
-    @nav.on(nav.RIGHT)
     def right(self):
         print("DictionarySetting.right")
-        if self.pointer < len(self.options) - 1:
+        if self.pointer < len(self.definition['options']) - 1:
             self.pointer += 1
-        elif self.loop:
+        elif self.definition['loop']:
             self.pointer = 0
         return True
 
-    @nav.on(nav.LEFT)
     def left(self):
         print("DictionarySetting.left")
         if self.pointer > 0:
             self.pointer -= 1
-        elif self.loop:
-            self.pointer = len(self.options) - 1
+        elif self.definition['loop']:
+            self.pointer = len(self.definition['options']) - 1
         return True
 
     def reset(self):
         # Load current value from config
         print("Resetting %s" % self.__class__)
-        # value = self.repline.config.get(self.config_location)
-        # print(value)
+        value = self.repline.config.get(self.config_location)
+        print(value)
         print(self.definition['options'])
-        sys.exit()
         if value is not None and value in self.definition['options']:
             self.pointer = list(self.definition['options']).index(value)
         else:
@@ -99,8 +97,6 @@ class DictionarySetting(ReplineMenuOption):
         print("Value saved as {0}".format(self.repline.config.get(self.config_location)))
 
     def redraw(self, menu):
-        print("Redraw...")
-        traceback.print_stack()
         if not self._icons_setup:
             self.setup_icons(menu)
 
@@ -121,7 +117,6 @@ class DictionarySetting(ReplineMenuOption):
             menu.write_row(2, "{0}Reset {1}OK {2}Back".format(chr(1), "+", chr(251)))
         else:
             menu.write_row(2, help_text)
-        print("Redraw complete")
 
     def get_value(self, pointer=None):
         if pointer is None:
@@ -146,16 +141,16 @@ class NumericSetting(ReplineMenuOption):
     max = 0
     min = 0
     default = 0
-    step = 1
     loop = False
     value = 0
 
     def __init__(self, repline, **kwargs):
         self._icons_setup = False
         super().__init__(repline, **kwargs)
+        if 'step' not in self.definition:
+            self.definition['step'] = 1
 
     def right(self):
-        print("DictionarySetting.right")
         self.value += self.definition['step']
         if self.value > self.definition['max']:
             if self.definition['loop']:
@@ -165,7 +160,6 @@ class NumericSetting(ReplineMenuOption):
         return True
 
     def left(self):
-        print("DictionarySetting.left")
         self.value -= self.definition['step']
         if self.value < self.definition['min']:
             if self.definition['loop']:
@@ -180,10 +174,14 @@ class NumericSetting(ReplineMenuOption):
         value = self.repline.config.get(self.config_location)
         if value is None:
             print("No value for {0} in config".format(self.config_location))
-        elif value.isdigit():
-            self.value = int()
+            self.reset_to_default()
+        elif value.lstrip('-').isdigit():
+            self.value = int(value)
         else:
-            print("Invalid value for {0} in config".format(self.config_location))
+            print("Invalid value for {0} in config: {1}".format(
+                ".".join(self.config_location),
+                self.repline.config.get(self.config_location)
+            ))
 
     def cleanup(self):
         self._icons_setup = False
@@ -262,19 +260,36 @@ class DummySetting(MenuOption):
 
 # class SaveLocation()
 
+
 class SetInputDevice(DictionarySetting):
     value = None
 
-    def __init__(self, repline, **kwargs):
-        devices = repline.recorder.get_audio_devices()
-        self.definition = kwargs
+    # def begin(self):
+    #     """Get available devices"""
+    #     devices = self.repline.recorder.get_input_devices()
+    #     options = {d['name']:d['name'] for d in devices}
+
+    def reset_to_default(self):
+        self.value = self.repline.recorder.get_default_input_device()
+        self.save()
+        self.reset()
+
+    def begin(self):
+        devices = self.repline.recorder.get_input_devices()
         self.definition['options'] = {d['name']: d['name'] for d in devices if d['max_input_channels'] > 0}
-        super().__init__(repline)
+        super().begin()
+
 
 class SetOutputDevice(DictionarySetting):
+    value = None
 
-    def __init__(self, repline, **kwargs):
-        devices = repline.recorder.get_audio_devices()
-        self.definition = kwargs
+    def begin(self):
+        devices = self.repline.recorder.get_audio_devices()
         self.definition['options'] = {d['name']: d['name'] for d in devices if d['max_output_channels'] > 0}
-        super().__init__(repline)
+        super().begin()
+
+    def reset_to_default(self):
+        self.value = self.repline.recorder.get_default_output_device()
+        self.save()
+        self.reset()
+

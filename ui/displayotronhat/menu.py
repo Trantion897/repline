@@ -16,10 +16,8 @@ class MainMenu():
             structure= {
                 'Record': self.record,
                 'Settings': self.generate_menu_structure(repline, Settings.options),
-                'Test': DictionarySetting(repline, options={'one':'one', 'two':'two', 'three':'three'}, default='one', title='TEST')
             },
             lcd=lcd)
-        nav.bind_defaults(self.menu)
 
     def generate_menu_structure(self, repline, menu_definition, parents=[]):
         if "class" in menu_definition:
