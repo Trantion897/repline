@@ -171,12 +171,12 @@ class Settings():
         print("Getting default for {0}".format(".".join(setting)))
         if setting[0] not in self.options or setting[1] not in self.options[setting[0]]:
             raise KeyError("No definition for {0} found".format(".".join(setting)))
-        elif "default" not in self.options[setting[0]][setting[1]]:
-            raise KeyError("No default available for {0}".format(".".join(setting)))
-        else:
+        elif "default" in self.options[setting[0]][setting[1]]:
             default = self.options[setting[0]][setting[1]]['default']
             print("Default is {0}".format(default))
             return default
+        else:
+            return None
 
     def set(self, setting, value):
         print("Setting current value of {0} to {1}".format(".".join(setting), value))
