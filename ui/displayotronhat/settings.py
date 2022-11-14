@@ -16,6 +16,7 @@ class ReplineMenuOption(MenuOption):
     _icons_setup = False
     text_entry = False
     config_location = []
+    value = None
 
     def __init__(self, repline, config_location=[], **kwargs):
         print ("Init ReplineMenuOption")
@@ -45,8 +46,7 @@ class ReplineMenuOption(MenuOption):
     def reset_to_default(self):
         # Restore to default value and save to config
         print("Restoring default for %s" % self.__class__)
-        self.repline.config.set_default(self.config_location)
-        self.reset()
+        self.value = self.repline.config.set_default(self.config_location)
 
     def setup_icons(self, menu):
         menu.lcd.create_char(0, MenuIcon.arrow_left_right)
@@ -78,6 +78,11 @@ class DictionarySetting(ReplineMenuOption):
         elif self.definition['loop']:
             self.pointer = len(self.definition['options']) - 1
         return True
+
+    def reset_to_default(self):
+        super().reset_to_default()
+        if self.value is not None and self.value in self.definition['options']:
+            self.pointer = list(self.definition['options']).index(self.value)
 
     def reset(self):
         # Load current value from config

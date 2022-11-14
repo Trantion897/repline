@@ -174,7 +174,9 @@ class Settings():
         return self.config[setting[0]][setting[1]]
 
     def set_default(self, setting):
-        self.config[setting[0]][setting[1]] = str(self.get_default(setting))
+        value = self.get_default(setting)
+        self.config[setting[0]][setting[1]] = str(value)
+        return value
 
     def get_default(self, setting):
         print("Getting default for {0}".format(".".join(setting)))
