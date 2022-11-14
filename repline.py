@@ -40,6 +40,15 @@ class Settings():
     config = configparser.ConfigParser()
     options = {
         "recording": {
+            "max_channels": {
+                "class": settings.DictionarySetting,
+                "options": {
+                    1: "Mono",
+                    2: "Stereo",
+                    99: "Device maximum"
+                },
+                "default": 99
+            },
             "normalisation": {
                 "class": settings.DictionarySetting,
                 "options": {"none": "None", "album": "Per album", "track": "Per track"},

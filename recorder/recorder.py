@@ -52,7 +52,9 @@ class recorder():
     # List of found silences
     silences = []
 
-    channels = 2
+    # Comes from SoundDevice
+    device = None
+    channels = 0
 
     def __init__(self, repline):
         sd.default.samplerate = 44100
@@ -65,6 +67,27 @@ class recorder():
         self.last_status = {}
         self.temporary_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), self.temporary_file)
         self.repline = repline
+
+    def open_input_device(self):
+        setting = self.repline.config.get(['hardware', 'input_device'])
+        if setting is None:
+            return False
+
+        try:
+            input_device = sd.query_devices(setting)
+            print(input_device)
+            if input_device.__class__ == dict:
+                # TODO: Maybe allow us to limit to stereo or even mono
+                self.channels = min(input_device['max_input_channels'], int(self.repline.config.get(['recording', 'max_channels'])))
+                self.device = input_device['index']
+                return True
+            else:
+                return False
+
+        except ValueError:
+            return False
+
+
 
     def temporary_file_exists(self):
         return os.path.exists(self.temporary_file)
@@ -224,11 +247,22 @@ class AudioDispatcher(multiprocessing.Process):
             recorder.dispatcher_response_time_remaining: None
         })
 
-        with sd.InputStream(samplerate=44100, device=self.recorder.repline.config.get("hardware", "input_device"), channels=self.recorder.channels, callback=self.callback):
+        with sd.InputStream(
+                samplerate=44100,
+                device=self.recorder.device,
+                channels=self.recorder.channels,
+                callback=self.callback
+        ):
             while self.is_recording:
                 current_file = self.recorder.temporary_file % file_number
                 current_file_start_time = monotonic()
-                with sf.SoundFile(current_file, mode='w', samplerate=44100, channels=self.recorder.channels, format='WAV') as tempFile:
+                with sf.SoundFile(
+                        current_file,
+                        mode='w',
+                        samplerate=44100,
+                        channels=self.recorder.channels,
+                        format='WAV'
+                ) as tempFile:
                     print("Writing to temporary file: %s" % current_file)
                     while self.is_recording and monotonic() < current_file_start_time + (self.recorder.temporary_file_max_length * 60):
                         print('1', end='')
@@ -397,7 +431,13 @@ class AudioInputListener(multiprocessing.Process):
 
     def run(self):
         print("AudioInputListener: Started recording")
-        with sd.InputStream(samplerate=44100, device=self.dispatcher.recorder.repline.config.get("hardware", "input_device"), channels=self.dispatcher.recorder.channels, callback=self.callback):
+        # TODO: Configurable sample rate
+        with sd.InputStream(
+                samplerate=44100,
+                device=self.dispatcher.recorder.device,
+                channels=self.dispatcher.recorder.channels,
+                callback=self.callback
+        ):
             while self.dispatcher.recorder.is_recording:
                 pass
 
