@@ -11,7 +11,6 @@ class Visualisation(tk.Canvas):
     height = 100
     minFreq = 100
     maxFreq = 4000
-    sampleRate = 44100
     updateTime = 0.02
 
     def __init__(self, master):
@@ -26,6 +25,7 @@ class Visualisation(tk.Canvas):
         self.low_bin = math.floor(self.minFreq / self.delta_f)
         self.create_rectangle(0, 0, self.width, self.height, fill="black")
         self.lines = [self.create_line(i, 0, random.randint(0, self.height), 0, fill="white") for i in range(self.width)]
+        self.sample_rate = self.master.repline.config.get(['recording', 'sample_rate'])
         colors = 30, 34, 35, 91, 93, 97
         chars = ' :%#\t#%:'
         for bg, fg in zip(colors, colors[1:]):

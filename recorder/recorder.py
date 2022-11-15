@@ -57,8 +57,9 @@ class recorder():
     channels = 0
 
     def __init__(self, repline):
-        sd.default.samplerate = 44100
+        self.sample_rate = repline.config.get(['recording', 'sample_rate'])
         sd.default.channels = self.channels
+        sd.default.samplerate = self.sample_rate
         self.q = Queue()
         self.queues = []
         self.is_recording = False
@@ -248,7 +249,7 @@ class AudioDispatcher(multiprocessing.Process):
         })
 
         with sd.InputStream(
-                samplerate=44100,
+                samplerate=self.sample_rate,
                 device=self.recorder.device,
                 channels=self.recorder.channels,
                 callback=self.callback
@@ -259,7 +260,7 @@ class AudioDispatcher(multiprocessing.Process):
                 with sf.SoundFile(
                         current_file,
                         mode='w',
-                        samplerate=44100,
+                        samplerate=self.sample_rate,
                         channels=self.recorder.channels,
                         format='WAV'
                 ) as tempFile:
@@ -431,9 +432,8 @@ class AudioInputListener(multiprocessing.Process):
 
     def run(self):
         print("AudioInputListener: Started recording")
-        # TODO: Configurable sample rate
         with sd.InputStream(
-                samplerate=44100,
+                samplerate=self.sample_rate,
                 device=self.dispatcher.recorder.device,
                 channels=self.dispatcher.recorder.channels,
                 callback=self.callback

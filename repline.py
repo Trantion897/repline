@@ -40,6 +40,24 @@ class Settings():
     config = configparser.ConfigParser()
     options = {
         "recording": {
+            "sample_rate": {
+                "class": settings.DictionarySetting,
+                "options": {
+                    22050: "22050Hz",
+                    44100: "44100Hz",
+                    48000: "48000Hz",
+                    88200: "88200Hz",
+                    96000: "96000Hz",
+                },
+                "help": {
+                    22050: "Half CD quality",
+                    44100: "CD quality",
+                    48000: "Also common",
+                    88200: "Hi-res standard",
+                    96000: "Studio quality",
+                },
+                "default": 44100,
+            },
             "max_channels": {
                 "class": settings.DictionarySetting,
                 "options": {
