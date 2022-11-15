@@ -33,7 +33,7 @@ class MainMenu():
         self.menu.redraw()
 
     def record(self):
-        self.controller.open_record_ui()
+        self.controller.open_prerecord_ui()
 
     def handle_up(self, ch, evt):
         print("handle_up, menu: {0}".format(self.menu.__class__))

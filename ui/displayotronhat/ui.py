@@ -1,5 +1,6 @@
 import dothat.touch as nav
 from .record import *
+from .record_start import *
 from .menu import MainMenu
 from .track_alignment import *
 
@@ -26,6 +27,7 @@ class UI:
 
     def __init__(self, repline):
         self.menu = MainMenu(repline, self)
+        self.prerecord_ui = RecordStart(repline, self)
         self.record_ui = Record(repline, self)
         self.alignment_ui = TrackAlignment(repline, self)
         self.open_menu()
@@ -44,6 +46,10 @@ class UI:
     def stop_redrawing(self):
         self.auto_redraw = False
 
+    def open_prerecord_ui(self):
+        self.active_ui = self.prerecord_ui
+        self.prerecord_ui.on_active()
+
     def open_record_ui(self):
         self.active_ui = self.record_ui
         self.record_ui.on_active()
@@ -51,6 +57,7 @@ class UI:
     def open_menu(self):
         self.active_ui = self.menu
         self.menu.on_active()
+        self.menu.redraw()
 
     def open_alignment(self):
         print("open_alignment")

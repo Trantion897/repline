@@ -1,12 +1,14 @@
 import textwrap
+import typing
 
 from dothat import lcd, backlight
 from dot3k.menu import MenuIcon
 import time
 from queue import Queue, Empty
 from ui.http.metadata.MetadataHandler import *
+from .abstract_ui import AbstractUI
 
-class Record():
+class Record(AbstractUI):
     icon_record = [0, 14, 31, 31, 31, 14, 0, 0]
     icon_stop = [0, 31, 31, 31, 31, 31, 0, 0]
     icon_tick = [0, 0, 0, 17, 26, 12, 0, 0]
@@ -25,6 +27,9 @@ class Record():
 
     # Recording is complete, we are still processing for silences before continuing to set track boundaries
     state_complete = "complete"
+
+    # An error that means we can't continue. OK or back take us out to the menu, all other buttons ignored.
+    state_error = "error"
 
     queue = None
     is_running = False
@@ -47,11 +52,7 @@ class Record():
         self.repline = repline
         self.recorder = repline.recorder
         self._icons_setup = False
-        if self.recorder.temporary_file_exists():
-            self.state = self.state_file_exists
-        else:
-            self.state = self.state_idle
-        print("Set state to %s" % self.state)
+        self.state = self.state_idle
         self.queue = Queue()
         self.recorder.register_callback_queue(self.queue)
 
@@ -72,9 +73,6 @@ class Record():
             print("Set state to %s" % self.state)
             self.updateThread.start()
             self.recorder.record()
-        elif self.state == self.state_file_exists:
-            # Delete the previous recording and go into idle state
-            self.state = self.state_idle
         else:
             print("Bad state, doing nothing")
 
@@ -110,9 +108,6 @@ class Record():
 
             self.ui.are_you_sure("Finish recording", on_yes = on_yes)
 
-        elif self.state == self.state_file_exists:
-            self.go_to_track_alignment()
-
     def go_to_track_alignment(self):
         print("go_to_track_alignment")
         # Make sure we have updated silences
@@ -144,10 +139,18 @@ class Record():
             self.redraw_recording()
         elif self.state == self.state_metadata:
             self.redraw_metadata()
-        elif self.state == self.state_file_exists:
-            self.redraw_file_exists()
+        elif self.state == self.state_error:
+            self.display_message(self.current_error())
         elif self.state == self.state_complete:
             self.redraw_complete()
+
+    def current_error(self):
+        # TODO
+        return [
+            'Error'
+        ]
+
+
 
     def redraw_idle(self):
         lcd.set_cursor_position(0, 0)
@@ -190,25 +193,17 @@ class Record():
         lcd.write(chr(2))
 
     def redraw_metadata(self):
-        lcd.set_cursor_position(0, 0)
+        msg = []
         if self.metadata_state == self.metadata_state_ready:
-            lcd.write("Open browser at:")
+            msg[0] = "Open browser at:"
         elif self.metadata_state == self.metadata_state_open:
-            lcd.write("Enter metadata")
-        lcd.set_cursor_position(0, 1)
+            msg[0] = "Enter metadata"
         url = textwrap.wrap(self.metadata_server.get_address(), width=16, break_long_words=True, max_lines=2)
-        lcd.write(url[0])
-        if (len(url) > 1):
-            lcd.set_cursor_position(0, 2)
-            lcd.write(url[1])
+        msg[1] = url[0]
+        if len(url) > 1:
+            msg[2] = lcd.write(url[1])
 
-    def redraw_file_exists(self):
-        lcd.set_cursor_position(0, 0)
-        lcd.write("Prev. file found")
-        lcd.set_cursor_position(0, 1)
-        lcd.write("Split or delete?")
-        lcd.set_cursor_position(0, 2)
-        lcd.write("DELETE     SPLIT")
+        self.display_message(msg)
 
     def redraw_stopped(self):
         lcd.set_cursor_position(0, 0)
@@ -246,17 +241,21 @@ class Record():
             print("Done")
             self.go_to_track_alignment()
         else:
-            lcd.write("Finding tracks")
+            msg = [
+                "Finding tracks",
+                "Time remaining:"
+            ]
             lcd.set_cursor_position(0, 1)
             lcd.write("Time remaining:")
             lcd.set_cursor_position(0, 2)
             if time_remaining is None:
-                lcd.write("Unknown")
+                msg.push("Unknown")
             elif time_remaining > 0:
                 minutes, seconds = divmod(time_remaining, 60)
-                lcd.write('{:02}:{:02}'.format(int(minutes), int(seconds)))
+                msg.push('{:02}:{:02}'.format(int(minutes), int(seconds)))
             else:
-                lcd.write('Just a moment...')
+                msg.push('Just a moment...')
+            return msg
 
     def connect(self):
         """Empty the queue and connect to the recorder, with a separate thread monitoring for updates"""
