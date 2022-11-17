@@ -3,6 +3,7 @@ from queue import Queue
 from encoding import encode
 import configparser
 import os
+import setproctitle
 
 from ui.displayotronhat import settings
 
@@ -11,6 +12,7 @@ class repline():
     def __init__(self):
         self.config = Settings()
         self.recorder = recorder.recorder(self)
+        setproctitle.setproctitle("Repline - main")
 
     def open_ui(self):
         #from ui.tk import Application

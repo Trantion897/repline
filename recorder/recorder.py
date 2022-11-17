@@ -1,6 +1,7 @@
 import audioop
 import queue
 from pickle import UnpicklingError
+import setproctitle
 
 import sounddevice as sd
 import soundfile as sf
@@ -64,7 +65,7 @@ class recorder():
         self.queues = []
         self.is_recording = False
         self.dispatcher_status, dispatcher_end = multiprocessing.Pipe()
-        self.dispatcher = AudioDispatcher(self, dispatcher_end)
+        self.dispatcher = AudioDispatcher(self, dispatcher_end, name='Audio Dispatcher')
         self.last_status = {}
         self.temporary_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), self.temporary_file)
         self.repline = repline
@@ -196,7 +197,7 @@ class AudioDispatcher(multiprocessing.Process):
     callbackQueues = []
 
     # Dictionary of FindSilence processes {index: process}
-    find_silence_processes = None
+    find_silence_processes = {}
     # Queue for FindSilence processes to report back to, as a tuple of (process index, [list, of, silences], time taken)
     find_silence_queue = None
     # Number of FindSilence processes currently running
@@ -213,7 +214,8 @@ class AudioDispatcher(multiprocessing.Process):
     max_processes = 1
     queued_processes = None
 
-    def __init__(self, recorder, recorder_status):
+    def __init__(self, recorder, recorder_status, **kwargs):
+        setproctitle.setproctitle("Repline - AudioDispatcher")
         self.recorder = recorder
         self.recorder_status = recorder_status
         self.inputQueue = Queue()
@@ -227,7 +229,7 @@ class AudioDispatcher(multiprocessing.Process):
 
         self.max_processes = max(1, multiprocessing.cpu_count() - 2)
         self.queued_processes = queue.Queue()
-        super().__init__()
+        super().__init__(**kwargs)
 
     def addCallbackQueue(self, queue):
         """Add a queue that receives a copy of all live audio data"""
@@ -240,7 +242,7 @@ class AudioDispatcher(multiprocessing.Process):
         self.inputQueue.put_nowait((indata.copy(), status))
 
     def run(self):
-        self.listener = AudioInputListener(self, self.inputQueue)
+        self.listener = AudioInputListener(self, self.inputQueue, name="AudioInputListener")
         self.listener.start()
         file_number = 0
         last_check = monotonic()
@@ -333,7 +335,12 @@ class AudioDispatcher(multiprocessing.Process):
         print("Maybe starting find silence; currently running %d/%d processes, %d queued" % (self.find_silence_process_count, self.max_processes, self.queued_processes.qsize()))
         while not self.queued_processes.empty() and self.find_silence_process_count < self.max_processes:
             file_number = self.queued_processes.get()
-            proc = FindSilences(file_number, self.recorder.temporary_file, self.find_silence_queue)
+            proc = FindSilences(
+                file_number,
+                self.recorder.temporary_file,
+                self.find_silence_queue,
+                name="Find Silences #{0}".format(file_number)
+            )
             self.find_silence_processes[file_number] = proc
             self.find_silence_process_count += 1
             self.find_silence_running_process_start_time[file_number] = monotonic()
@@ -419,10 +426,11 @@ class AudioInputListener(multiprocessing.Process):
     dispatcher = None
     queue = None
 
-    def __init__(self, dispatcher, queue):
+    def __init__(self, dispatcher, queue, **kwargs):
+        setproctitle.setproctitle("Repline - {0}".format(kwargs['name']))
         self.dispatcher = dispatcher
         self.queue = queue
-        super().__init__()
+        super().__init__(**kwargs)
 
     def run(self):
         print("AudioInputListener: Started recording")
@@ -454,14 +462,16 @@ class FindSilences(multiprocessing.Process):
     audio_segment = None
     queue = None
 
-    def __init__(self, index, temporary_file_path, queue):
+    def __init__(self, index, temporary_file_path, queue, **kwargs):
+        os.setpriority(os.PRIO_PROCESS, 0, 10)
+        setproctitle.setproctitle("Repline - {0}".format(kwargs['name']))
         self.index = index
         file = temporary_file_path % index
-        print("Started new process looking for silences in %s" % file)
+        print("Created new process looking for silences in %s" % file)
         # Load this segment in mono to speed up silence detection
         self.audio_segment = AudioSegment.from_wav(file).set_channels(1)
         self.queue = queue
-        super().__init__()
+        super().__init__(**kwargs)
 
     def run(self):
         os.nice(1)
