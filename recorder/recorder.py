@@ -242,8 +242,12 @@ class AudioDispatcher(multiprocessing.Process):
         self.inputQueue.put_nowait((indata.copy(), status))
 
     def run(self):
-        self.listener = AudioInputListener(self, self.inputQueue, name="AudioInputListener")
-        self.listener.start()
+        print("Recorder running")
+        # TODO: Lots of these AILs are spawning. We should only ever have one. Maybe because we have multiple main processes?
+        if self.listener is None:
+            print("Spawning AIL")
+            self.listener = AudioInputListener(self, self.inputQueue, name="AudioInputListener")
+            self.listener.start()
         file_number = 0
         last_check = monotonic()
 
@@ -427,13 +431,14 @@ class AudioInputListener(multiprocessing.Process):
     queue = None
 
     def __init__(self, dispatcher, queue, **kwargs):
+        print("Hello, I'm an AIL")
         setproctitle.setproctitle("Repline - {0}".format(kwargs['name']))
         self.dispatcher = dispatcher
         self.queue = queue
         super().__init__(**kwargs)
 
     def run(self):
-        print("AudioInputListener: Started recording")
+        print("AIL: Started recording")
         with sd.InputStream(
                 samplerate=self.dispatcher.recorder.sample_rate,
                 device=self.dispatcher.recorder.device,

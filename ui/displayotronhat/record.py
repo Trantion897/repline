@@ -56,8 +56,6 @@ class Record(AbstractUI):
         self.queue = Queue()
         self.recorder.register_callback_queue(self.queue)
 
-        self.updateThread = threading.Thread(target=self.visualisation, daemon=True)
-
     def on_active(self):
         pass
 
@@ -71,7 +69,6 @@ class Record(AbstractUI):
         if self.state == self.state_idle:
             self.state = self.state_recording
             print("Set state to %s" % self.state)
-            self.updateThread.start()
             self.recorder.record()
         else:
             print("Bad state, doing nothing")
@@ -262,7 +259,6 @@ class Record(AbstractUI):
         self.queue.empty()
         self.is_running = True
         self.repline.register_callback_queue("recorder", self.queue)
-        self.updateThread.start()
 
     def visualisation(self):
         while True:

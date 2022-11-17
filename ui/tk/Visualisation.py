@@ -16,7 +16,6 @@ class Visualisation(tk.Canvas):
     def __init__(self, master):
         super().__init__(master, width=self.width, height=self.height)
         self.master = master
-        self.updateThread = threading.Thread(target=self.update, daemon=True)
         self.queue = Queue()
         self.is_running = False
         self.delta_f = (self.maxFreq - self.minFreq) / (self.width)
@@ -41,7 +40,6 @@ class Visualisation(tk.Canvas):
         self.queue.empty()
         self.is_running = True
         self.master.repline.register_callback_queue("recorder", self.queue)
-        self.updateThread.start()
 
     def stop(self):
         (self.coords(self.lines[i], i, self.height/2, i, self.height/2) for i in range(self.width))
