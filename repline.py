@@ -1,4 +1,4 @@
-from recorder import recorder
+import recorder
 from queue import Queue
 from encoding import encode
 import configparser

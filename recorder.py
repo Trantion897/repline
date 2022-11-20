@@ -23,7 +23,7 @@ class recorder():
     recording_start_time = None
     recording_end_time = None
 
-    temporary_file = "repline-input-%d.wav"
+    temporary_file = "tmp/repline-input-%d.wav"
     temporary_file_max_length = 1
 
     dispatcher = None
