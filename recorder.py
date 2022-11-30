@@ -1,4 +1,5 @@
 import audioop
+import math
 import queue
 from pickle import UnpicklingError
 import setproctitle
@@ -49,6 +50,8 @@ class recorder():
     dispatcher_response_time_remaining = "time_remaining"
     # Dispatcher response key containing a list of found silences
     dispatcher_response_silence_list = "silences"
+    # Dispatcher response key containing sound level in decibels
+    dispatcher_response_soundlevel = "sound_level"
 
     # List of found silences
     silences = []
@@ -64,11 +67,17 @@ class recorder():
         self.q = Queue()
         self.queues = []
         self.is_recording = False
-        self.dispatcher_status, dispatcher_end = multiprocessing.Pipe()
-        self.dispatcher = AudioDispatcher(self, dispatcher_end, name='Audio Dispatcher')
+
         self.last_status = {}
         self.temporary_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), self.temporary_file)
         self.repline = repline
+
+    def start_listening(self):
+        # Initialise the dispatcher and listener
+        print("Start_listening")
+        self.dispatcher_status, dispatcher_end = multiprocessing.Pipe()
+        self.dispatcher = AudioDispatcher(self, dispatcher_end, name='Audio Dispatcher')
+        self.dispatcher.start()
 
     def open_input_device(self):
         setting = self.repline.config.get(['hardware', 'input_device'])
@@ -128,7 +137,6 @@ class recorder():
         self.is_recording = True
         self.dispatcher_status.send({self.dispatcher_command_recording: True})
         self.recording_start_time = datetime.now()
-        self.dispatcher.start()
 
     def get_recording_duration(self):
         """Get the recording duration"""
@@ -147,8 +155,7 @@ class recorder():
         print ("Recording complete")
 
     def update_dispatcher_status(self):
-        while self.dispatcher_status.poll():
-            print("getting status")
+        if self.dispatcher_status.poll():
             try:
                 new_status = self.dispatcher_status.recv()
                 if self.dispatcher_response_silence_list in new_status:
@@ -159,8 +166,6 @@ class recorder():
                 pass
 
     def get_dispatcher_status(self):
-        print("Returning status:")
-        print(self.last_status)
         return self.last_status
 
     def get_silences(self):
@@ -191,8 +196,6 @@ class AudioDispatcher(multiprocessing.Process):
 
     # FindSilences
     silenceProcessor = None
-    # Queue from AudioDispatcher -> FindSilences (send audio for scanning)
-    processingQueue = None
     # List of queues to copy incoming audio to
     callbackQueues = []
 
@@ -209,17 +212,17 @@ class AudioDispatcher(multiprocessing.Process):
     # Start time of each currently running process
     find_silence_running_process_start_time = None
 
-    is_recording = True
+    state = 'idle'
 
     max_processes = 1
     queued_processes = None
 
+    status = {}
+
     def __init__(self, recorder, recorder_status, **kwargs):
-        setproctitle.setproctitle("Repline - AudioDispatcher")
         self.recorder = recorder
         self.recorder_status = recorder_status
         self.inputQueue = Queue()
-        self.processingQueue = Queue()
         self.callbackQueues = []
 
         self.silences = []
@@ -235,29 +238,47 @@ class AudioDispatcher(multiprocessing.Process):
         """Add a queue that receives a copy of all live audio data"""
         self.callbackQueues.append(queue)
 
-    def callback(self, indata, frames, time, status):
-        """This is called (from a separate thread) for each audio block."""
-        if status:
-            print(status, file=sys.stderr)
-        self.inputQueue.put_nowait((indata.copy(), status))
+    def start(self):
+        setproctitle.setproctitle("Repline - AudioDispatcher")
+        print("AudioDispatcher starting")
+        self.status = {
+            recorder.dispatcher_response_soundlevel: None,
+            recorder.dispatcher_response_time_remaining: None,
+            recorder.dispatcher_response_process_count: 0,
+            recorder.dispatcher_response_file_index: 0,
+            recorder.dispatcher_response_silence_list: [],
+        }
+        super().start()
 
     def run(self):
-        print("Recorder running")
-        # TODO: Lots of these AILs are spawning. We should only ever have one. Maybe because we have multiple main processes?
-        if self.listener is None:
-            print("Spawning AIL")
-            self.listener = AudioInputListener(self, self.inputQueue, name="AudioInputListener")
-            self.listener.start()
+        # First run, start up the listener
+        self.listener = AudioInputListener(self, self.inputQueue, name="AudioInputListener")
+        self.listener.start()
+
+        # setproctitle.setproctitle("Repline - {0}".format(self.name))
+        while True:
+
+            if self.state == 'idle':
+                self.run_idle()
+            elif self.state == 'recording':
+                self.run_recording()
+            elif self.state == 'after_recording':
+                self.run_after_recording()
+
+    def run_idle(self):
+        # pass
+        while self.state == 'idle':
+            # (indata, status, log_rms) = self.get_incoming_data()
+            (indata, status) = self.inputQueue.get()
+            # self.status[recorder.dispatcher_response_soundlevel] = log_rms
+            self.recorder_status.send(self.status)
+            self.receive_messages()
+
+    def run_recording(self):
         file_number = 0
         last_check = monotonic()
 
-        self.recorder_status.send({
-            recorder.dispatcher_response_file_index: file_number,
-            recorder.dispatcher_response_process_count: 0,
-            recorder.dispatcher_response_time_remaining: None
-        })
-
-        while self.is_recording:
+        while self.state == 'recording':
             current_file = self.recorder.temporary_file % file_number
             current_file_start_time = monotonic()
             with sf.SoundFile(
@@ -268,40 +289,46 @@ class AudioDispatcher(multiprocessing.Process):
                     format='WAV'
             ) as tempFile:
                 print("Writing to temporary file: %s" % current_file)
-                while self.is_recording and monotonic() < current_file_start_time + (self.recorder.temporary_file_max_length * 60):
+                while self.state == 'recording' and monotonic() < current_file_start_time + (self.recorder.temporary_file_max_length * 60):
+                    #(indata, status, log_rms) = self.get_incoming_data()
                     (indata, status) = self.inputQueue.get()
-                    tempFile.write(indata)
-                    self.processingQueue.put(indata)
+                    if indata is not None:
+                        tempFile.write(indata)
 
-                    for queue in self.callbackQueues:
-                        queue.put((indata, status))
-                    self.receive_messages()
-                    # Once a second, check if any FindSilences jobs have finished and update the status for the recorder
-                    if last_check + 1 < monotonic():
-                        last_check = monotonic()
-                        self.read_from_find_silence_queue()
-                        self.start_find_silence_process()
-                        print("There are %d running FindSilence processes, %d silences found by completed processes." % (self.find_silence_process_count, len(self.silences)))
-                        print("Sending status: index: %s (%s), processes: %s (%s), time remaining: %s (%s)" % (
-                            file_number,
-                            type(file_number),
-                            self.find_silence_process_count,
-                            type(self.find_silence_process_count),
-                            self.get_estimated_finish_time(),
-                            type(self.get_estimated_finish_time())
-                        ))
-                        self.recorder_status.send({
-                            recorder.dispatcher_response_file_index: file_number,
-                            recorder.dispatcher_response_process_count: self.find_silence_process_count,
-                            recorder.dispatcher_response_time_remaining: self.get_estimated_finish_time()
-                        })
-                        print("Sent update to recorder")
-            # Spawn a FindSilences process to handle this latest file
-            # TODO: Only allow cpu_count - 2 to run at once (min. 1)
-            self.queued_processes.put(file_number)
-            print(">>> Added file %d to the queue, there are now %d queued processes" % (file_number, self.queued_processes.qsize()))
-            file_number += 1
+                    #     for cb_queue in self.callbackQueues:
+                    #         cb_queue.put((indata, status))
+                    #     # Once a second, check if any FindSilences jobs have finished and update the status for the recorder
+                    #     if last_check + 1 < monotonic():
+                    #         last_check = monotonic()
+                    #         self.read_from_find_silence_queue()
+                    #         self.start_find_silence_process()
+                    #         print("There are %d running FindSilence processes, %d silences found by completed processes." % (self.find_silence_process_count, len(self.silences)))
+                    #         print("Sending status: index: %s (%s), processes: %s (%s), time remaining: %s (%s)" % (
+                    #             file_number,
+                    #             type(file_number),
+                    #             self.find_silence_process_count,
+                    #             type(self.find_silence_process_count),
+                    #             self.get_estimated_finish_time(),
+                    #             type(self.get_estimated_finish_time())
+                    #         ))
+                    #         self.recorder_status.send({
+                    #             recorder.dispatcher_response_file_index: file_number,
+                    #             recorder.dispatcher_response_process_count: self.find_silence_process_count,
+                    #             recorder.dispatcher_response_time_remaining: self.get_estimated_finish_time()
+                    #         })
+                    #         print("Sent update to recorder")
+                    #
+                    # self.receive_messages()
 
+
+                # Spawn a FindSilences process to handle this latest file
+                # TODO: Only allow cpu_count - 2 to run at once (min. 1)
+                self.queued_processes.put(file_number)
+                print(">>> Added file %d to the queue, there are now %d queued processes" % (file_number, self.queued_processes.qsize()))
+                file_number += 1
+                self.receive_messages()
+
+    def run_after_recording(self):
         print("AudioDispatcher: Stopped recording")
         # Now keep updating until all processes have completed
         while self.find_silence_process_count > 0:
@@ -325,6 +352,7 @@ class AudioDispatcher(multiprocessing.Process):
             })
             print("Sent update 2 to recorder, sleeping for 1 second")
             sleep(1)
+            self.receive_messages()
 
         print("AudioDispatcher: Finished track finder")
         self.recorder_status.send({
@@ -332,6 +360,28 @@ class AudioDispatcher(multiprocessing.Process):
             recorder.dispatcher_response_process_count: 0,
             recorder.dispatcher_response_time_remaining: 0
         })
+
+    def get_incoming_data(self):
+        log_rms = None
+        if not self.inputQueue.empty():
+            (indata, status) = self.inputQueue.get()
+            # print("AudioDispatcher got data: ", indata)
+            if indata is not None and len(indata) > 0:
+                linear_rms = numpy.sqrt(numpy.mean(indata**2))
+                if linear_rms != 0:
+                    log_rms = 20 * math.log10(linear_rms)  # Decibel value, 0dB -> -inf dB
+                else:
+                    log_rms = -999  # TODO
+                # print("RMS: ", log_rms)
+        else:
+            indata = None
+            status = None
+
+        return indata, status, log_rms
+
+    def flush_incoming_data(self):
+        while not self.inputQueue.empty():
+            self.inputQueue.get_nowait()
 
     def start_find_silence_process(self):
         """Start queued find silence processes until the maximum number of processes are running"""
@@ -356,14 +406,25 @@ class AudioDispatcher(multiprocessing.Process):
 
     def receive_messages(self):
         """Receive incoming messages from the controller pipe"""
-        while self.recorder_status.poll():
+        # print("AudioDispatcher - checking for messages")
+        if self.recorder_status.poll():
             msg = self.recorder_status.recv()
+            print("Recorder received message:", msg)
             if recorder.dispatcher_command_recording in msg:
-                self.is_recording = msg[recorder.dispatcher_command_recording]
+                if msg[recorder.dispatcher_command_recording]:
+                    self.flush_incoming_data()
+                    self.state = 'recording'
+                else:
+                    self.state = 'after_recording'
             if recorder.dispatcher_command_send_silences in msg:
                 self.recorder_status.send({
                     recorder.dispatcher_response_silence_list: self.silences
                 })
+
+    def check_test_message(self):
+        print("Waiting for test message, PID {0}".format(os.getpid()))
+        msg = self.recorder_status.recv()
+        print("Test message: ", msg)
 
 
     def get_processes_started(self):
@@ -431,31 +492,38 @@ class AudioInputListener(multiprocessing.Process):
     queue = None
 
     def __init__(self, dispatcher, queue, **kwargs):
-        print("Hello, I'm an AIL")
-        setproctitle.setproctitle("Repline - {0}".format(kwargs['name']))
+        print("Hello, I'm an AudioInputListener")
         self.dispatcher = dispatcher
         self.queue = queue
         super().__init__(**kwargs)
 
     def run(self):
-        print("AIL: Started recording")
+        setproctitle.setproctitle("Repline - {0}".format(self.name))
+        print("AudioInputListener: Started recording. Sample rate: {0}, device: {1}, channels: {2}".format(
+            self.dispatcher.recorder.sample_rate,
+            self.dispatcher.recorder.device,
+            self.dispatcher.recorder.channels
+        ))
         with sd.InputStream(
-                samplerate=self.dispatcher.recorder.sample_rate,
-                device=self.dispatcher.recorder.device,
-                channels=self.dispatcher.recorder.channels,
-                callback=self.callback
+            samplerate=self.dispatcher.recorder.sample_rate,
+            device=self.dispatcher.recorder.device,
+            channels=self.dispatcher.recorder.channels,
+            callback=self.callback,
+            # TODO: We need to set a blocksize, and a buffer between input & output
+            # TODO: See https://python-sounddevice.readthedocs.io/en/0.4.1/examples.html#input-to-output-pass-through
         ):
-            while self.dispatcher.recorder.is_recording:
-                sd.sleep(100)
+            while True:
+                sleep(1)
+                # pass  # TODO: Need IPC to stop recording
 
         print("AudioInputListener: Stopped recording")
 
     def callback(self, indata, frames, time, status):
-        rms = numpy.sqrt(numpy.mean(numpy.square(indata)))
+        # print("AudioInputListener got data!")
         # print("RMS: %d " % rms)
-        self.queue.put((indata.copy(), status))
+        self.queue.put((indata, status))
         if status:
-            print(status)
+            print(">>", status, os.getpid())
 
 class FindSilences(multiprocessing.Process):
     """Finds all silences in a single temporary file and writes them to a queue

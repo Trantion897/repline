@@ -16,7 +16,7 @@ class UI:
     alignment_ui = None
 
     auto_redraw = True
-    redraw_rate = 1
+    redraw_rate = 0.05
 
     repline_animated_e = [
         [0, 0, 14, 17, 31, 16, 14, 0], # Normal
@@ -33,7 +33,7 @@ class UI:
         self.open_menu()
 
         bind_buttons(self)
-        self.set_redraw_rate(1)
+        self.set_redraw_rate(0.05)
 
     def set_redraw_rate(self, rate):
         self.auto_redraw = True

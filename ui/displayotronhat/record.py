@@ -54,10 +54,10 @@ class Record(AbstractUI):
         self._icons_setup = False
         self.state = self.state_idle
         self.queue = Queue()
-        self.recorder.register_callback_queue(self.queue)
 
     def on_active(self):
-        pass
+        self.recorder.start_listening()
+        self.recorder.register_callback_queue(self.queue)
 
     def setup_icons(self):
         lcd.create_char(0, self.icon_record)
@@ -65,7 +65,7 @@ class Record(AbstractUI):
         lcd.create_char(2, self.icon_stop)
 
     def handle_left(self, ch, evt):
-        print("We want to record; current state is %s. We want it to be %s. " % (self.state, self.state_idle))
+        print("We want to record; current state is %s. We want it to be %s. " % (self.state, self.state_recording))
         if self.state == self.state_idle:
             self.state = self.state_recording
             print("Set state to %s" % self.state)
@@ -152,6 +152,14 @@ class Record(AbstractUI):
     def redraw_idle(self):
         lcd.set_cursor_position(0, 0)
         lcd.write("Record")
+        status = self.recorder.get_dispatcher_status()
+        # print(status)
+
+        if self.recorder.dispatcher_response_soundlevel in status:
+            sound_level = status[self.recorder.dispatcher_response_soundlevel]
+            if sound_level is not None:
+                lcd.set_cursor_position(10, 0)
+                lcd.write("{0:>4}dB".format(sound_level))
 
         if self.audio_metadata is not None:
             # TODO: Alternate/scroll artist and title
