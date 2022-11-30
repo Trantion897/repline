@@ -42,6 +42,9 @@ class Settings():
     config = configparser.ConfigParser()
     options = {
         "recording": {
+            "volume": {
+                "class": settings.AlsaCaptureVolumeSetting,
+            },
             "sample_rate": {
                 "class": settings.DictionarySetting,
                 "options": {
@@ -54,8 +57,8 @@ class Settings():
                 "help": {
                     22050: "Half CD quality",
                     44100: "CD quality",
-                    48000: "Also common",
-                    88200: "Hi-res standard",
+                    48000: "DAT quality",
+                    88200: "Hi-res",
                     96000: "Studio quality",
                 },
                 "default": 44100,

@@ -16,6 +16,7 @@ from pydub.silence import *
 from math import ceil
 
 import numpy
+import alsaaudio
 
 import sys
 import multiprocessing
@@ -181,6 +182,51 @@ class recorder():
         # TODO: Handle what happens if we never got a silence list
         return self.silences
 
+class AlsaMixerControl:
+    capture_mixers = []
+
+    def __init__(self, repline):
+        self.repline = repline
+        self.alsa_device_name = self.get_alsa_device_name()
+
+        # Find useful mixers and controls
+        mixers = alsaaudio.mixers(device=self.alsa_device_name)
+        sources = [m for m in mixers if m.lower().find('source') != -1]
+        line = [m for m in mixers if m.lower().find('line') != -1]
+        mic = [m for m in mixers if m.lower().find('mic') != -1]
+
+        # 1. Any channel with 'source' in the name should have an enum set to Line, Mic as fallback
+        for mixer_name in sources:
+            mixer = alsaaudio.Mixer(control=mixer_name, device=self.alsa_device_name)
+            enum = mixer.getenum()
+            if len(enum) == 2:
+                value, options = enum
+                options = [x.lower() for x in options]
+                if 'line' in options:
+                    mixer.setenum(options.index('line'))
+
+        # 2. Any channel with 'line' in the name should have recording enabled and the volume set
+        if len(line) > 0:
+            self.capture_mixers = [alsaaudio.Mixer(control=mixer_name, device=self.alsa_device_name) for mixer_name in line]
+        # 2a. If no 'line' channel, do the same to 'mic'
+        elif len(mic) > 0:
+            self.capture_mixers = [alsaaudio.Mixer(control=mixer_name, device=self.alsa_device_name) for mixer_name in mic]
+
+        self.set_capture_volume(int(self.repline.config.get(['recording', 'volume'])))
+
+    def set_capture_volume(self, volume):
+        print("set_capture_volume({0}) on {1}".format(volume, ", ".join(m.mixer() for m in self.capture_mixers)))
+        for mixer in self.capture_mixers:
+            mixer.setrec(1)
+            mixer.setvolume(volume, pcmtype=alsaaudio.PCM_CAPTURE)
+
+    def get_alsa_device_name(self):
+        fullname = self.repline.config.get(['hardware', 'input_device'])
+        alsa_name_index = fullname.index('hw:')  # TODO: Capture exception on failure
+        alsa_name_end = fullname.index(':', alsa_name_index)+2
+        alsa_name = fullname[alsa_name_index: alsa_name_end]
+
+        return alsa_name
 
 class AudioDispatcher(multiprocessing.Process):
     """Manages the AudioInputListener, writing captured audio to the temporary files, spawning processes to find tracks & silences in those temporary files"""

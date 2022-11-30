@@ -6,3 +6,4 @@
 * pydub `pip3 install pydub`
 * displayotron `get.pimoroni.com/displayotron`
 * musicbrainzngs `pip3 install musicbrainzngs`
+* pyalsaaudio

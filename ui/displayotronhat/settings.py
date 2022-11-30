@@ -2,6 +2,8 @@ import sys
 import traceback
 
 from dot3k.menu import MenuOption, MenuIcon
+
+import recorder
 from encoding import encode
 
 # TODO: None of these are being saved?
@@ -298,3 +300,24 @@ class SetOutputDevice(DictionarySetting):
         self.save()
         self.reset()
 
+
+class AlsaCaptureVolumeSetting(NumericSetting):
+    mixer_control = None
+
+    def __init__(self, repline, **kwargs):
+        super().__init__(repline, **kwargs)
+        self.definition = {
+            'title': 'Capture level',
+            'suffix': '%',
+            'min': 0,
+            'max': 100,
+            'step': 1,
+        }
+
+    def begin(self):
+        self.mixer_control = recorder.AlsaMixerControl(self.repline)
+        super().begin()
+
+    def save(self):
+        super().save()
+        self.mixer_control.set_capture_volume(int(self.value))
