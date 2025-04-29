@@ -5,13 +5,13 @@ from dothat import lcd, backlight
 from dot3k.menu import MenuIcon
 import time
 from queue import Queue, Empty
+
+import ui.displayotronhat.ui
 from ui.http.metadata.MetadataHandler import *
 from .abstract_ui import AbstractUI
 
 class Record(AbstractUI):
-    icon_record = [0, 14, 31, 31, 31, 14, 0, 0]
-    icon_stop = [0, 31, 31, 31, 31, 31, 0, 0]
-    icon_tick = [0, 0, 0, 17, 26, 12, 0, 0]
+
 
     # The temporary file(s) already exist, so we're asking the user if they want to keep them
     state_file_exists = "file_exists"
@@ -60,9 +60,9 @@ class Record(AbstractUI):
         self.recorder.register_callback_queue(self.queue)
 
     def setup_icons(self):
-        lcd.create_char(0, self.icon_record)
+        lcd.create_char(0, ui.displayotronhat.ui.icon_record)
         lcd.create_char(1, MenuIcon.pause)
-        lcd.create_char(2, self.icon_stop)
+        lcd.create_char(2, ui.displayotronhat.ui.icon_stop)
 
     def handle_left(self, ch, evt):
         print("We want to record; current state is %s. We want it to be %s. " % (self.state, self.state_recording))

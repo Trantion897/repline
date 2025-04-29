@@ -16,6 +16,7 @@ class MainMenu():
             structure= {
                 'Record': self.record,
                 'Settings': self.generate_menu_structure(repline, Settings.options),
+                'Align test': self.controller.open_alignment_ui
             },
             lcd=lcd)
 

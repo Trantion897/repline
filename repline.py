@@ -1,5 +1,7 @@
 import recorder
 from queue import Queue
+
+from audio_manipulation import track_markers
 from encoding import encode
 import configparser
 import os
@@ -11,6 +13,7 @@ from ui.displayotronhat import settings
 class repline():
     def __init__(self):
         self.config = Settings()
+        self.track_data = track_markers.TrackData()
         self.recorder = recorder.recorder(self)
         setproctitle.setproctitle("Repline - main")
 

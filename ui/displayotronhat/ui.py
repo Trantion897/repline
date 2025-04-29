@@ -29,7 +29,7 @@ class UI:
         self.menu = MainMenu(repline, self)
         self.prerecord_ui = RecordStart(repline, self)
         self.record_ui = Record(repline, self)
-        self.alignment_ui = TrackAlignment(repline, self)
+        self.alignment_ui = TrackListing(repline, self)
         self.open_menu()
 
         bind_buttons(self)
@@ -53,6 +53,10 @@ class UI:
     def open_record_ui(self):
         self.active_ui = self.record_ui
         self.record_ui.on_active()
+
+    def open_alignment_ui(self):
+        self.active_ui = self.alignment_ui
+        self.active_ui.on_active()
 
     def open_menu(self):
         self.active_ui = self.menu
@@ -114,6 +118,14 @@ class UI:
         :param on_no   Function to call if the user answers 'no'
         """
         AreYouSure(self, message, on_yes, on_no)
+
+
+icon_record = [0, 14, 31, 31, 31, 14, 0, 0]
+icon_stop = [0, 31, 31, 31, 31, 31, 0, 0]
+icon_tick = [0, 0, 0, 17, 26, 12, 0, 0]
+icon_pencil = [14, 10, 14, 10, 10, 14, 14, 4]
+icon_ellipsis = [0, 0, 0, 21, 0, 0, 0, 0]
+icon_hamburger = [0, 31, 0, 31, 0, 31, 0, 0]
 
 def bind_buttons(ui):
     @nav.on(nav.UP)
