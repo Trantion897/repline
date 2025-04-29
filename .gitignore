@@ -1,5 +1,5 @@
 # Repline temporary files
-recorder/repline-input-*.wav
+*.wav
 repline.ini
 dot3k.cfg
 

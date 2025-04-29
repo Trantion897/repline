@@ -99,8 +99,6 @@ class recorder():
         except ValueError:
             return False
 
-
-
     def temporary_file_exists(self):
         return os.path.exists(self.temporary_file)
 
@@ -153,7 +151,7 @@ class recorder():
         self.dispatcher_status.send({self.dispatcher_command_recording: False})
         self.recording_end_time = datetime.now()
 
-        print ("Recording complete")
+        print("Recording complete")
 
     def update_dispatcher_status(self):
         if self.dispatcher_status.poll():
@@ -278,6 +276,7 @@ class AudioDispatcher(multiprocessing.Process):
 
         self.max_processes = max(1, multiprocessing.cpu_count() - 2)
         self.queued_processes = queue.Queue()
+
         super().__init__(**kwargs)
 
     def addCallbackQueue(self, queue):
@@ -448,7 +447,6 @@ class AudioDispatcher(multiprocessing.Process):
             proc.start()
             print(self.find_silence_running_process_start_time)
             file_number += 1
-
 
     def receive_messages(self):
         """Receive incoming messages from the controller pipe"""

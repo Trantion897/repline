@@ -69,7 +69,6 @@ class RecordStart(AbstractUI):
 
     def redraw(self):
         print("Redraw record_start, state {0}".format(self.state))
-        print(self.states[self.state])
         if self.state is not None:
             state_definition = self.states[self.state]
             self.display_message(state_definition['message'])
